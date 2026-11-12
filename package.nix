@@ -1,0 +1,42 @@
+{
+  lib,
+  stdenv,
+  buildGoModule,
+  age,
+  age-plugin-se,
+}:
+buildGoModule {
+  pname = "idc";
+  version = "0.1.0";
+
+  src = lib.fileset.toSource {
+    root = ./.;
+    fileset = lib.fileset.unions [
+      ./go.mod
+      (lib.fileset.fileFilter (file: file.hasExt "go") ./.)
+    ];
+  };
+
+  # the standard library is the only dependency
+  vendorHash = null;
+  env.CGO_ENABLED = 0;
+
+  ldflags = [
+    "-s"
+    "-w"
+  ]
+  # the Secure Enclave store exists on macOS alone
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    "-X github.com/gshpychka/idc/internal/store.agePath=${age}/bin/age"
+    "-X github.com/gshpychka/idc/internal/store.agePluginSEPath=${age-plugin-se}/bin/age-plugin-se"
+  ];
+
+  # the tests serve stand-ins for the AWS endpoints on the loopback interface
+  __darwinAllowLocalNetworking = true;
+
+  meta = {
+    description = "Sign-in to AWS IAM Identity Center and credentials for the roles it grants";
+    mainProgram = "idc";
+    platforms = lib.platforms.unix;
+  };
+}
