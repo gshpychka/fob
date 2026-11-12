@@ -11,8 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gshpychka/idc/internal/atomicfile"
-	"github.com/gshpychka/idc/internal/roles"
+	"github.com/gshpychka/fob/internal/atomicfile"
+	"github.com/gshpychka/fob/internal/roles"
 )
 
 // header opens a config that program wrote.

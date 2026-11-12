@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gshpychka/idc/internal/fakeaws"
-	"github.com/gshpychka/idc/internal/session"
-	"github.com/gshpychka/idc/internal/ssooidc"
-	"github.com/gshpychka/idc/internal/store"
+	"github.com/gshpychka/fob/internal/fakeaws"
+	"github.com/gshpychka/fob/internal/session"
+	"github.com/gshpychka/fob/internal/ssooidc"
+	"github.com/gshpychka/fob/internal/store"
 )
 
 func TestLoginPacesRedemptionAsTheServiceDirects(t *testing.T) {

@@ -1,3 +1,3 @@
-module github.com/gshpychka/idc
+module github.com/gshpychka/fob
 
 go 1.27

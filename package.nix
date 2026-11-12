@@ -6,7 +6,7 @@
   age-plugin-se,
 }:
 buildGoModule {
-  pname = "idc";
+  pname = "fob";
   version = "0.1.0";
 
   src = lib.fileset.toSource {
@@ -27,8 +27,8 @@ buildGoModule {
   ]
   # the Secure Enclave store exists on macOS alone
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
-    "-X github.com/gshpychka/idc/internal/store.agePath=${age}/bin/age"
-    "-X github.com/gshpychka/idc/internal/store.agePluginSEPath=${age-plugin-se}/bin/age-plugin-se"
+    "-X github.com/gshpychka/fob/internal/store.agePath=${age}/bin/age"
+    "-X github.com/gshpychka/fob/internal/store.agePluginSEPath=${age-plugin-se}/bin/age-plugin-se"
   ];
 
   # the tests serve stand-ins for the AWS endpoints on the loopback interface
@@ -36,7 +36,7 @@ buildGoModule {
 
   meta = {
     description = "Sign-in to AWS IAM Identity Center and credentials for the roles it grants";
-    mainProgram = "idc";
+    mainProgram = "fob";
     platforms = lib.platforms.unix;
   };
 }

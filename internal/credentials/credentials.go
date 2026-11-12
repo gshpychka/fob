@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/gshpychka/idc/internal/portal"
-	"github.com/gshpychka/idc/internal/session"
-	"github.com/gshpychka/idc/internal/store"
+	"github.com/gshpychka/fob/internal/portal"
+	"github.com/gshpychka/fob/internal/session"
+	"github.com/gshpychka/fob/internal/store"
 )
 
 // Provider hands out role credentials, keeping each set in the store for as long as it serves.

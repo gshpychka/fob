@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gshpychka/idc/internal/store"
+	"github.com/gshpychka/fob/internal/store"
 )
 
 // This test runs on a machine whose systemd serves user-scoped credentials.

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gshpychka/idc/internal/portal"
+	"github.com/gshpychka/fob/internal/portal"
 )
 
 // Role is a role the user can take in an AWS account.

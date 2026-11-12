@@ -8,11 +8,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/gshpychka/idc/internal/awsconfig"
-	"github.com/gshpychka/idc/internal/credentials"
-	"github.com/gshpychka/idc/internal/portal"
-	"github.com/gshpychka/idc/internal/roles"
-	"github.com/gshpychka/idc/internal/session"
+	"github.com/gshpychka/fob/internal/awsconfig"
+	"github.com/gshpychka/fob/internal/credentials"
+	"github.com/gshpychka/fob/internal/portal"
+	"github.com/gshpychka/fob/internal/roles"
+	"github.com/gshpychka/fob/internal/session"
 )
 
 // app runs the program's commands.

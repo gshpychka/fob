@@ -1,4 +1,4 @@
-# idc
+# fob
 
 Sign-in to AWS IAM Identity Center, and credentials for the roles it grants.
 
@@ -9,7 +9,7 @@ One sign-in covers every account and role. Each role is an AWS profile named
 ## Use
 
 ```console
-$ idc login
+$ fob login
 IAM Identity Center start URL: https://example.awsapps.com/start
 IAM Identity Center region [eu-west-1]:
 Approve the sign-in: approval page
@@ -23,15 +23,15 @@ a link the terminal opens on a click. A sign-in lasts the
 of an IAM Identity Center access token.
 
 ```console
-$ idc sync
+$ fob sync
 billing/Admin
 data-platform/ReadOnly
 $ AWS_PROFILE=billing/Admin aws sts get-caller-identity
 ```
 
-`idc sync` lists the roles granted right now, gives each a profile in the AWS
+`fob sync` lists the roles granted right now, gives each a profile in the AWS
 config file and prints the profile names. The profiles call
-`idc creds <account-id> <role-name>`, which keeps a role's credentials in the
+`fob creds <account-id> <role-name>`, which keeps a role's credentials in the
 store until 15 minutes before they expire.
 
 A shell function switches roles:
@@ -39,7 +39,7 @@ A shell function switches roles:
 ```zsh
 awsp() {
   local profiles profile
-  profiles="$(idc sync)" || { idc login && profiles="$(idc sync)" } || return
+  profiles="$(fob sync)" || { fob login && profiles="$(fob sync)" } || return
   profile="$(fzf <<< "$profiles")" && export AWS_PROFILE="$profile"
 }
 ```
@@ -48,8 +48,8 @@ awsp() {
 
 | File | Holds |
 | --- | --- |
-| `$IDC_CONFIG_FILE`, or `$XDG_CONFIG_HOME/idc/config.json` | The settings: `startUrl`, `region` and, to override the platform's default, `store`. |
-| `$XDG_STATE_HOME/idc/` | The secrets, in the store. |
+| `$FOB_CONFIG_FILE`, or `$XDG_CONFIG_HOME/fob/config.json` | The settings: `startUrl`, `region` and, to override the platform's default, `store`. |
+| `$XDG_STATE_HOME/fob/` | The secrets, in the store. |
 | `$AWS_CONFIG_FILE`, or `~/.aws/config` | The profiles. `sync` owns this file and asks before it replaces a config it did not write. |
 
 ## Stores
@@ -64,11 +64,11 @@ awsp() {
 
 ```nix
 {
-  inputs.idc = {
-    url = "github:gshpychka/idc";
+  inputs.fob = {
+    url = "github:gshpychka/fob";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 }
 ```
 
-`idc.packages.<system>.default` is the program.
+`fob.packages.<system>.default` is the program.

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/gshpychka/idc/internal/roles"
+	"github.com/gshpychka/fob/internal/roles"
 )
 
 func TestProfilesTellApartAccountsThatShareAName(t *testing.T) {

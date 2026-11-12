@@ -1,4 +1,4 @@
-// Command idc signs in to AWS IAM Identity Center and serves the credentials of the roles it grants.
+// Command fob signs in to AWS IAM Identity Center and serves the credentials of the roles it grants.
 package main
 
 import (
@@ -14,15 +14,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gshpychka/idc/internal/config"
-	"github.com/gshpychka/idc/internal/credentials"
-	"github.com/gshpychka/idc/internal/portal"
-	"github.com/gshpychka/idc/internal/session"
-	"github.com/gshpychka/idc/internal/ssooidc"
-	"github.com/gshpychka/idc/internal/store"
+	"github.com/gshpychka/fob/internal/config"
+	"github.com/gshpychka/fob/internal/credentials"
+	"github.com/gshpychka/fob/internal/portal"
+	"github.com/gshpychka/fob/internal/session"
+	"github.com/gshpychka/fob/internal/ssooidc"
+	"github.com/gshpychka/fob/internal/store"
 )
 
-const program = "idc"
+const program = "fob"
 
 // settingsVariable is the environment variable that names the settings file.
 var settingsVariable = strings.ToUpper(program) + "_CONFIG_FILE"

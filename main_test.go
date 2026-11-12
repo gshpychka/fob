@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gshpychka/idc/internal/credentials"
-	"github.com/gshpychka/idc/internal/fakeaws"
-	"github.com/gshpychka/idc/internal/portal"
-	"github.com/gshpychka/idc/internal/session"
-	"github.com/gshpychka/idc/internal/ssooidc"
-	"github.com/gshpychka/idc/internal/store"
+	"github.com/gshpychka/fob/internal/credentials"
+	"github.com/gshpychka/fob/internal/fakeaws"
+	"github.com/gshpychka/fob/internal/portal"
+	"github.com/gshpychka/fob/internal/session"
+	"github.com/gshpychka/fob/internal/ssooidc"
+	"github.com/gshpychka/fob/internal/store"
 )
 
 // newApp wires the commands to a stand-in for AWS and to a user who types answers.
@@ -79,7 +79,7 @@ func TestSignInSyncAndCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if profile := "[profile Data-Platform/Admin]\ncredential_process = idc creds 111111111111 Admin\n"; !strings.Contains(string(config), profile) {
+	if profile := "[profile Data-Platform/Admin]\ncredential_process = fob creds 111111111111 Admin\n"; !strings.Contains(string(config), profile) {
 		t.Errorf("config lacks %q:\n%s", profile, config)
 	}
 

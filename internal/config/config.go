@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gshpychka/idc/internal/atomicfile"
-	"github.com/gshpychka/idc/internal/session"
-	"github.com/gshpychka/idc/internal/store"
+	"github.com/gshpychka/fob/internal/atomicfile"
+	"github.com/gshpychka/fob/internal/session"
+	"github.com/gshpychka/fob/internal/store"
 )
 
 // Settings are what the user tells the program once.

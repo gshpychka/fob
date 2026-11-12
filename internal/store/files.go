@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gshpychka/idc/internal/atomicfile"
+	"github.com/gshpychka/fob/internal/atomicfile"
 )
 
 // files keeps each secret in a file named after it.

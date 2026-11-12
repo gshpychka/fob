@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gshpychka/idc/internal/ssooidc"
-	"github.com/gshpychka/idc/internal/store"
+	"github.com/gshpychka/fob/internal/ssooidc"
+	"github.com/gshpychka/fob/internal/store"
 )
 
 // ErrSignedOut reports that the user has to sign in.
