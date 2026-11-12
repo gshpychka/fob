@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"cmp"
 	"context"
 	"fmt"
@@ -9,9 +10,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
+	"slices"
 	"time"
 
+	"github.com/gshpychka/idc/internal/config"
 	"github.com/gshpychka/idc/internal/credentials"
 	"github.com/gshpychka/idc/internal/portal"
 	"github.com/gshpychka/idc/internal/session"
@@ -24,60 +26,79 @@ const program = "idc"
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	app, err := fromEnvironment()
-	if err == nil {
-		err = app.run(ctx, os.Args[1:])
-	}
-	if err != nil {
+	if err := run(ctx, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-// variable names one of the program's own environment variables.
-func variable(suffix string) string {
-	return strings.ToUpper(program) + "_" + suffix
-}
-
-// fromEnvironment wires the program to the instance, the store and the files its environment names.
-func fromEnvironment() (app, error) {
-	instance := session.Instance{
-		StartURL: os.Getenv(variable("SSO_START_URL")),
-		Region:   os.Getenv(variable("SSO_REGION")),
-	}
-	if instance.StartURL == "" || instance.Region == "" {
-		return app{}, fmt.Errorf("%s and %s name the IAM Identity Center instance and are both required",
-			variable("SSO_START_URL"), variable("SSO_REGION"))
-	}
+func run(ctx context.Context, arguments []string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return app{}, err
+		return err
 	}
-	secrets, err := store.Open(
-		cmp.Or(store.Kind(os.Getenv(variable("STORE"))), store.DefaultKind()),
-		filepath.Join(cmp.Or(os.Getenv("XDG_STATE_HOME"), filepath.Join(home, ".local", "state")), program),
-	)
+	// directory is the program's own directory under an XDG base directory.
+	directory := func(variable, fallback string) string {
+		return filepath.Join(cmp.Or(os.Getenv(variable), filepath.Join(home, fallback)), program)
+	}
+	settingsPath := filepath.Join(directory("XDG_CONFIG_HOME", ".config"), "config.json")
+	settings, err := config.Load(settingsPath)
 	if err != nil {
-		return app{}, err
+		return err
+	}
+	user := prompter{in: bufio.NewReader(os.Stdin), out: os.Stderr}
+	signingIn := slices.Equal(arguments, []string{"login"})
+	if signingIn {
+		if settings.Instance, err = identify(settings.Instance, user); err != nil {
+			return err
+		}
+	}
+	secrets, err := store.Open(cmp.Or(settings.Store, store.DefaultKind()), directory("XDG_STATE_HOME", ".local/state"))
+	if err != nil {
+		return err
 	}
 	client := &http.Client{Timeout: 30 * time.Second}
 	signIn := session.Session{
-		Instance:   instance,
-		OIDC:       ssooidc.Client{Endpoint: ssooidc.Endpoint(instance.Region), HTTP: client},
+		Instance:   settings.Instance,
+		OIDC:       ssooidc.Client{Endpoint: ssooidc.Endpoint(settings.Region), HTTP: client},
 		Secrets:    secrets,
 		ClientName: program,
 		Sleep:      session.Sleep,
 	}
-	portalClient := portal.Client{Endpoint: portal.Endpoint(instance.Region), HTTP: client}
-	return app{
+	portalClient := portal.Client{Endpoint: portal.Endpoint(settings.Region), HTTP: client}
+	commands := app{
 		stdout:        os.Stdout,
 		stderr:        os.Stderr,
 		hyperlinks:    isTerminal(os.Stderr),
+		user:          user,
 		session:       signIn,
 		portal:        portalClient,
 		credentials:   credentials.Provider{Session: signIn, Portal: portalClient, Secrets: secrets},
 		awsConfigPath: cmp.Or(os.Getenv("AWS_CONFIG_FILE"), filepath.Join(home, ".aws", "config")),
-	}, nil
+	}
+	if err := commands.run(ctx, arguments); err != nil {
+		return err
+	}
+	// The settings file records an instance once a sign-in to it has succeeded.
+	if signingIn {
+		return config.Save(settingsPath, settings)
+	}
+	return nil
+}
+
+// identify asks the user for the parts of the instance that the settings lack.
+func identify(instance session.Instance, user prompter) (session.Instance, error) {
+	var err error
+	if instance.StartURL == "" {
+		if instance.StartURL, err = user.ask("IAM Identity Center start URL", ""); err != nil {
+			return instance, err
+		}
+	}
+	if instance.Region == "" {
+		suggestion := cmp.Or(os.Getenv("AWS_REGION"), os.Getenv("AWS_DEFAULT_REGION"))
+		instance.Region, err = user.ask("IAM Identity Center region", suggestion)
+	}
+	return instance, err
 }
 
 func isTerminal(file *os.File) bool {

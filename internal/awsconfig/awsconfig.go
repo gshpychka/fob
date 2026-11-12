@@ -15,18 +15,23 @@ import (
 	"github.com/gshpychka/idc/internal/roles"
 )
 
-// Write replaces the config at path with one in which each profile sources its credentials from program.
-// The file is one program wrote before, or holds nothing yet.
-func Write(path, program string, profiles []roles.Profile) error {
-	header := fmt.Sprintf("# Written by %s, which replaces this file on every sync.\n", program)
+// header opens a config that program wrote.
+func header(program string) string {
+	return fmt.Sprintf("# Written by %s, which replaces this file on every sync.\n", program)
+}
+
+// Foreign reports whether the file at path holds a config that program did not write.
+func Foreign(path, program string) (bool, error) {
 	existing, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
 	}
-	if len(existing) > 0 && !bytes.HasPrefix(existing, []byte(header)) {
-		return fmt.Errorf("%s holds a config %s did not write; point AWS_CONFIG_FILE at a file for %s to own", path, program, program)
-	}
-	config := bytes.NewBufferString(header)
+	return len(existing) > 0 && !bytes.HasPrefix(existing, []byte(header(program))), err
+}
+
+// Write replaces the config at path with one in which each profile sources its credentials from program.
+func Write(path, program string, profiles []roles.Profile) error {
+	config := bytes.NewBufferString(header(program))
 	for _, profile := range profiles {
 		fmt.Fprintf(config, "\n[profile %s]\ncredential_process = %s creds %s %s\n",
 			profile.Name, program, profile.Role.AccountID, profile.Role.Name)

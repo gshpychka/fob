@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,11 +21,8 @@ import (
 	"github.com/gshpychka/idc/internal/store"
 )
 
-func TestSignInSyncAndCredentials(t *testing.T) {
-	aws := fakeaws.New(t,
-		fakeaws.Account{ID: "111111111111", Name: "Data Platform", Roles: []string{"ReadOnly", "Admin"}},
-		fakeaws.Account{ID: "222222222222", Name: "billing", Roles: []string{"Admin"}},
-	)
+// newApp wires the commands to a stand-in for AWS and to a user who types answers.
+func newApp(t *testing.T, aws *fakeaws.Server, answers string) (a app, stdout, stderr *bytes.Buffer) {
 	secrets, err := store.Open(store.File, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -36,15 +35,24 @@ func TestSignInSyncAndCredentials(t *testing.T) {
 		Sleep:      func(context.Context, time.Duration) error { return nil },
 	}
 	portalClient := portal.Client{Endpoint: aws.URL, HTTP: http.DefaultClient}
-	var stdout, stderr bytes.Buffer
-	a := app{
-		stdout:        &stdout,
-		stderr:        &stderr,
+	stdout, stderr = new(bytes.Buffer), new(bytes.Buffer)
+	return app{
+		stdout:        stdout,
+		stderr:        stderr,
+		user:          prompter{in: bufio.NewReader(strings.NewReader(answers)), out: io.Discard},
 		session:       signIn,
 		portal:        portalClient,
 		credentials:   credentials.Provider{Session: signIn, Portal: portalClient, Secrets: secrets},
 		awsConfigPath: filepath.Join(t.TempDir(), "config"),
-	}
+	}, stdout, stderr
+}
+
+func TestSignInSyncAndCredentials(t *testing.T) {
+	aws := fakeaws.New(t,
+		fakeaws.Account{ID: "111111111111", Name: "Data Platform", Roles: []string{"ReadOnly", "Admin"}},
+		fakeaws.Account{ID: "222222222222", Name: "billing", Roles: []string{"Admin"}},
+	)
+	a, stdout, stderr := newApp(t, aws, "")
 	// run returns what a command prints to standard output.
 	run := func(arguments ...string) string {
 		t.Helper()
@@ -81,5 +89,23 @@ func TestSignInSyncAndCredentials(t *testing.T) {
 	}
 	if second := run("creds", "111111111111", "Admin"); second != first {
 		t.Errorf("stored credentials were replaced: %q, then %q", first, second)
+	}
+}
+
+func TestSyncReplacesAForeignConfigOnlyWithConsent(t *testing.T) {
+	const foreign = "[default]\nregion = eu-west-1\n"
+	for answer, replaced := range map[string]bool{"n\n": false, "y\n": true} {
+		a, _, _ := newApp(t, fakeaws.New(t), answer)
+		if err := a.run(context.Background(), []string{"login"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(a.awsConfigPath, []byte(foreign), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		err := a.run(context.Background(), []string{"sync"})
+		config, _ := os.ReadFile(a.awsConfigPath)
+		if (err == nil) != replaced || (string(config) != foreign) != replaced {
+			t.Errorf("answer %q: err = %v, config = %q", answer, err, config)
+		}
 	}
 }

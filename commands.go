@@ -21,11 +21,12 @@ type app struct {
 	stderr io.Writer
 	// hyperlinks says that stderr is a terminal, which renders links.
 	hyperlinks bool
+	user       prompter
 
 	session     session.Session
 	portal      portal.Client
 	credentials credentials.Provider
-	// awsConfigPath is the AWS shared config file that sync writes.
+	// awsConfigPath is the AWS shared config file that holds the profiles.
 	awsConfigPath string
 }
 
@@ -73,6 +74,13 @@ func hyperlink(text, url string) string {
 
 // sync gives every role granted right now a profile in the AWS config, and prints the profiles.
 func (a app) sync(ctx context.Context) error {
+	foreign, err := awsconfig.Foreign(a.awsConfigPath, program)
+	if err != nil {
+		return err
+	}
+	if foreign && !a.user.confirm(fmt.Sprintf("%s holds a config %s did not write. Replace it?", a.awsConfigPath, program)) {
+		return fmt.Errorf("%s stays as it is; AWS_CONFIG_FILE names the file %s writes", a.awsConfigPath, program)
+	}
 	accessToken, err := a.session.AccessToken(ctx)
 	if err != nil {
 		return err

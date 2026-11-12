@@ -16,8 +16,8 @@ var ErrSignedOut = errors.New("signed out")
 
 // Instance identifies an IAM Identity Center instance.
 type Instance struct {
-	StartURL string
-	Region   string
+	StartURL string `json:"startUrl"`
+	Region   string `json:"region"`
 }
 
 // Session is the sign-in of one user to one instance, kept in a store.
