@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/gshpychka/idc/internal/config"
@@ -22,6 +23,9 @@ import (
 )
 
 const program = "idc"
+
+// settingsVariable is the environment variable that names the settings file.
+var settingsVariable = strings.ToUpper(program) + "_CONFIG_FILE"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -41,7 +45,7 @@ func run(ctx context.Context, arguments []string) error {
 	directory := func(variable, fallback string) string {
 		return filepath.Join(cmp.Or(os.Getenv(variable), filepath.Join(home, fallback)), program)
 	}
-	settingsPath := filepath.Join(directory("XDG_CONFIG_HOME", ".config"), "config.json")
+	settingsPath := cmp.Or(os.Getenv(settingsVariable), filepath.Join(directory("XDG_CONFIG_HOME", ".config"), "config.json"))
 	settings, err := config.Load(settingsPath)
 	if err != nil {
 		return err

@@ -48,7 +48,7 @@ awsp() {
 
 | File | Holds |
 | --- | --- |
-| `$XDG_CONFIG_HOME/idc/config.json` | The settings: `startUrl`, `region` and, to override the platform's default, `store`. |
+| `$IDC_CONFIG_FILE`, or `$XDG_CONFIG_HOME/idc/config.json` | The settings: `startUrl`, `region` and, to override the platform's default, `store`. |
 | `$XDG_STATE_HOME/idc/` | The secrets, in the store. |
 | `$AWS_CONFIG_FILE`, or `~/.aws/config` | The profiles. `sync` owns this file and asks before it replaces a config it did not write. |
 
