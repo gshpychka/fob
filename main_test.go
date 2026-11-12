@@ -21,7 +21,7 @@ import (
 	"github.com/gshpychka/fob/internal/store"
 )
 
-// newApp wires the commands to a stand-in for AWS and to a user who types answers.
+// newApp wires the commands to a stand-in for AWS and to a user who types answers and picks the first profile.
 func newApp(t *testing.T, aws *fakeaws.Server, answers string) (a app, stdout, stderr *bytes.Buffer) {
 	secrets, err := store.Open(store.File, t.TempDir())
 	if err != nil {
@@ -40,14 +40,16 @@ func newApp(t *testing.T, aws *fakeaws.Server, answers string) (a app, stdout, s
 		stdout:        stdout,
 		stderr:        stderr,
 		user:          prompter{in: bufio.NewReader(strings.NewReader(answers)), out: io.Discard},
+		choose:        func(_ context.Context, lines []string, _ string) (string, error) { return lines[0], nil },
 		session:       signIn,
 		portal:        portalClient,
 		credentials:   credentials.Provider{Session: signIn, Portal: portalClient, Secrets: secrets},
 		awsConfigPath: filepath.Join(t.TempDir(), "config"),
+		remember:      func() error { return nil },
 	}, stdout, stderr
 }
 
-func TestSignInSyncAndCredentials(t *testing.T) {
+func TestPickSyncAndCredentials(t *testing.T) {
 	aws := fakeaws.New(t,
 		fakeaws.Account{ID: "111111111111", Name: "Data Platform", Roles: []string{"ReadOnly", "Admin"}},
 		fakeaws.Account{ID: "222222222222", Name: "billing", Roles: []string{"Admin"}},
@@ -67,9 +69,11 @@ func TestSignInSyncAndCredentials(t *testing.T) {
 		t.Fatalf("sync before login: %v", err)
 	}
 
-	run("login")
+	if picked := run(); picked != "Data-Platform/Admin\n" {
+		t.Errorf("the picker printed %q", picked)
+	}
 	if shown := stderr.String(); !strings.Contains(shown, fakeaws.VerificationURL) || !strings.Contains(shown, fakeaws.UserCode) {
-		t.Errorf("login showed %q", shown)
+		t.Errorf("the sign-in showed %q", shown)
 	}
 
 	if profiles := run("sync"); profiles != "Data-Platform/Admin\nData-Platform/ReadOnly\nbilling/Admin\n" {

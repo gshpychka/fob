@@ -9,7 +9,7 @@ One sign-in covers every account and role. Each role is an AWS profile named
 ## Use
 
 ```console
-$ fob login
+$ fob
 IAM Identity Center start URL: https://example.awsapps.com/start
 IAM Identity Center region [eu-west-1]:
 Approve the sign-in: approval page
@@ -17,32 +17,36 @@ Code: ABCD-EFGH
 Signed in until 18:42.
 ```
 
+`fob` signs you in when you are signed out, then opens a picker over your roles
+and prints the profile you choose.
+
 The first sign-in asks for the instance and remembers it. The approval page is
 a link the terminal opens on a click. A sign-in lasts the
 [eight hours](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sso-credentials.html)
 of an IAM Identity Center access token.
 
-```console
-$ fob sync
-billing/Admin
-data-platform/ReadOnly
-$ AWS_PROFILE=billing/Admin aws sts get-caller-identity
-```
+The picker is [fzf](https://github.com/junegunn/fzf). It shows the roles of the
+last sync at once and takes in the roles granted right now as soon as AWS has
+listed them.
 
-`fob sync` lists the roles granted right now, gives each a profile in the AWS
-config file and prints the profile names. The profiles call
-`fob creds <account-id> <role-name>`, which keeps a role's credentials in the
-store until 15 minutes before they expire.
-
-A shell function switches roles:
+A shell function makes the choice the profile of the shell:
 
 ```zsh
-awsp() {
-  local profiles profile
-  profiles="$(fob sync)" || { fob login && profiles="$(fob sync)" } || return
-  profile="$(fzf <<< "$profiles")" && export AWS_PROFILE="$profile"
+fob() {
+  if (( $# )); then
+    command fob "$@"
+  else
+    local profile
+    profile="$(command fob)" && export AWS_PROFILE="$profile"
+  fi
 }
 ```
+
+| Command | Does |
+| --- | --- |
+| `fob login` | Signs in and syncs. |
+| `fob sync` | Gives each role granted right now a profile in the AWS config file and prints the profile names. |
+| `fob creds <account-id> <role-name>` | Prints a role's credentials for `credential_process`. The profiles call it, and it keeps the credentials in the store until 15 minutes before they expire. |
 
 ## Files
 
@@ -50,7 +54,7 @@ awsp() {
 | --- | --- |
 | `$FOB_CONFIG_FILE`, or `$XDG_CONFIG_HOME/fob/config.json` | The settings: `startUrl`, `region` and, to override the platform's default, `store`. |
 | `$XDG_STATE_HOME/fob/` | The secrets, in the store. |
-| `$AWS_CONFIG_FILE`, or `~/.aws/config` | The profiles. `sync` owns this file and asks before it replaces a config it did not write. |
+| `$AWS_CONFIG_FILE`, or `~/.aws/config` | The profiles. `fob` owns this file and asks before it replaces a config it did not write. |
 
 ## Stores
 

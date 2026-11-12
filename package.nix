@@ -4,6 +4,7 @@
   buildGoModule,
   age,
   age-plugin-se,
+  fzf,
 }:
 buildGoModule {
   pname = "fob";
@@ -24,6 +25,7 @@ buildGoModule {
   ldflags = [
     "-s"
     "-w"
+    "-X main.fzfPath=${lib.getExe fzf}"
   ]
   # the Secure Enclave store exists on macOS alone
   ++ lib.optionals stdenv.hostPlatform.isDarwin [

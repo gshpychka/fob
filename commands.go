@@ -22,20 +22,26 @@ type app struct {
 	// hyperlinks says that stderr is a terminal, which renders links.
 	hyperlinks bool
 	user       prompter
+	// choose lets the user pick one of lines, which the output of the refresh command replaces.
+	choose func(ctx context.Context, lines []string, refresh string) (string, error)
 
 	session     session.Session
 	portal      portal.Client
 	credentials credentials.Provider
 	// awsConfigPath is the AWS shared config file that holds the profiles.
 	awsConfigPath string
+	// remember records the instance in the settings file.
+	remember func() error
 }
 
-var errUsage = errors.New("usage: " + program + " login | sync | creds <account-id> <role-name>")
+var errUsage = errors.New("usage: " + program + " [login | sync | creds <account-id> <role-name>]")
 
 // run executes the command line that follows the program's name.
 func (a app) run(ctx context.Context, arguments []string) error {
 	err := errUsage
 	switch {
+	case len(arguments) == 0:
+		err = a.pick(ctx)
 	case len(arguments) == 1 && arguments[0] == "login":
 		err = a.login(ctx)
 	case len(arguments) == 1 && arguments[0] == "sync":
@@ -49,8 +55,42 @@ func (a app) run(ctx context.Context, arguments []string) error {
 	return err
 }
 
-// login signs the user in.
+// pick prints the profile the user chooses, after a sign-in when they are signed out.
+func (a app) pick(ctx context.Context) error {
+	_, err := a.session.AccessToken(ctx)
+	if errors.Is(err, session.ErrSignedOut) {
+		err = a.signIn(ctx)
+	}
+	if err != nil {
+		return err
+	}
+	names, err := awsconfig.Read(a.awsConfigPath, program)
+	if len(names) == 0 {
+		// A config without profiles gets its first sync before the picker opens.
+		names, err = a.refresh(ctx)
+	}
+	if err != nil {
+		return err
+	}
+	profile, err := a.choose(ctx, names, program+" sync")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(a.stdout, profile)
+	return nil
+}
+
+// login signs the user in and refreshes the profiles.
 func (a app) login(ctx context.Context) error {
+	if err := a.signIn(ctx); err != nil {
+		return err
+	}
+	_, err := a.refresh(ctx)
+	return err
+}
+
+// signIn takes the user through a sign-in and remembers its instance.
+func (a app) signIn(ctx context.Context) error {
 	expiry, err := a.session.Login(ctx, func(approval session.Approval) {
 		page := approval.URL
 		if a.hyperlinks {
@@ -62,7 +102,7 @@ func (a app) login(ctx context.Context) error {
 		return err
 	}
 	fmt.Fprintf(a.stderr, "Signed in until %s.\n", expiry.Format("15:04"))
-	return nil
+	return a.remember()
 }
 
 // hyperlink is underlined text that a terminal opens as a link on a click.
@@ -72,31 +112,45 @@ func hyperlink(text, url string) string {
 	return "\x1b]8;;" + url + "\x1b\\\x1b[4m" + text + "\x1b[24m\x1b]8;;\x1b\\"
 }
 
-// sync gives every role granted right now a profile in the AWS config, and prints the profiles.
+// sync refreshes the profiles and prints their names.
 func (a app) sync(ctx context.Context) error {
-	foreign, err := awsconfig.Foreign(a.awsConfigPath, program)
+	names, err := a.refresh(ctx)
 	if err != nil {
 		return err
 	}
-	if foreign && !a.user.confirm(fmt.Sprintf("%s holds a config %s did not write. Replace it?", a.awsConfigPath, program)) {
-		return fmt.Errorf("%s stays as it is; AWS_CONFIG_FILE names the file %s writes", a.awsConfigPath, program)
+	for _, name := range names {
+		fmt.Fprintln(a.stdout, name)
+	}
+	return nil
+}
+
+// refresh gives every role granted right now a profile in the AWS config and returns the profiles' names.
+func (a app) refresh(ctx context.Context) ([]string, error) {
+	_, err := awsconfig.Read(a.awsConfigPath, program)
+	if errors.Is(err, awsconfig.ErrForeign) {
+		if !a.user.confirm(fmt.Sprintf("%s holds a config %s did not write. Replace it?", a.awsConfigPath, program)) {
+			return nil, fmt.Errorf("%s stays as it is; AWS_CONFIG_FILE names the file %s writes", a.awsConfigPath, program)
+		}
+	} else if err != nil {
+		return nil, err
 	}
 	accessToken, err := a.session.AccessToken(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	granted, err := roles.Fetch(ctx, a.portal, accessToken)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	profiles := roles.Profiles(granted)
 	if err := awsconfig.Write(a.awsConfigPath, program, profiles); err != nil {
-		return err
+		return nil, err
 	}
-	for _, profile := range profiles {
-		fmt.Fprintln(a.stdout, profile.Name)
+	names := make([]string, len(profiles))
+	for i, profile := range profiles {
+		names[i] = profile.Name
 	}
-	return nil
+	return names, nil
 }
 
 // creds prints a role's credentials in the format of credential_process.
