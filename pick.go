@@ -18,7 +18,8 @@ var errNoChoice = errors.New("no profile chosen")
 //
 // https://junegunn.github.io/fzf/reference/
 func choose(ctx context.Context, lines []string, refresh string) (string, error) {
-	fzf := exec.CommandContext(ctx, fzfPath)
+	// The reverse layout puts the prompt at the top and the best match right under it.
+	fzf := exec.CommandContext(ctx, fzfPath, "--layout=reverse")
 	if refresh != "" {
 		// fzf raises load for every list it finishes reading, so the binding unbinds itself.
 		fzf.Args = append(fzf.Args, "--bind", "load:unbind(load)+reload-sync("+refresh+")")
