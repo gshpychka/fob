@@ -14,12 +14,15 @@ var fzfPath = "fzf"
 
 var errNoChoice = errors.New("no profile chosen")
 
-// choose returns the line the user picks out of lines; the output of the refresh command takes their place once it is complete.
+// choose returns the line the user picks out of lines; the output of a refresh command takes their place once it is complete.
 //
 // https://junegunn.github.io/fzf/reference/
 func choose(ctx context.Context, lines []string, refresh string) (string, error) {
-	// fzf raises load for every list it finishes reading, so the binding unbinds itself.
-	fzf := exec.CommandContext(ctx, fzfPath, "--bind", "load:unbind(load)+reload-sync("+refresh+")")
+	fzf := exec.CommandContext(ctx, fzfPath)
+	if refresh != "" {
+		// fzf raises load for every list it finishes reading, so the binding unbinds itself.
+		fzf.Args = append(fzf.Args, "--bind", "load:unbind(load)+reload-sync("+refresh+")")
+	}
 	fzf.Stdin = strings.NewReader(strings.Join(lines, "\n"))
 	fzf.Stderr = os.Stderr
 	choice, err := fzf.Output()

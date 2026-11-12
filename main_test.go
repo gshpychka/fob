@@ -69,6 +69,7 @@ func TestPickSyncAndCredentials(t *testing.T) {
 		t.Fatalf("sync before login: %v", err)
 	}
 
+	aws.ThrottleRoleListings(2)
 	if picked := run(); picked != "Data-Platform/Admin\n" {
 		t.Errorf("the picker printed %q", picked)
 	}

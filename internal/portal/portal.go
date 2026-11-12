@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"time"
@@ -107,7 +108,32 @@ func (c Client) GetRoleCredentials(ctx context.Context, accessToken, accountID, 
 	}, nil
 }
 
+// errThrottled reports a request the service turns away for the rate of requests.
+var errThrottled = errors.New("IAM Identity Center is throttling requests")
+
+// A throttled response names no time to retry at, so the pauses before the retries double from the first to the last.
+const (
+	firstPause = 200 * time.Millisecond
+	lastPause  = 3200 * time.Millisecond
+)
+
+// get performs a request, and repeats one that the service throttles.
 func (c Client) get(ctx context.Context, accessToken, path string, query url.Values, response any) error {
+	for pause := firstPause; ; pause *= 2 {
+		err := c.attempt(ctx, accessToken, path, query, response)
+		if !errors.Is(err, errThrottled) || pause > lastPause {
+			return err
+		}
+		// A random share of the pause spreads out requests that were throttled together.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pause/2 + rand.N(pause/2)):
+		}
+	}
+}
+
+func (c Client) attempt(ctx context.Context, accessToken, path string, query url.Values, response any) error {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Endpoint+path+"?"+query.Encode(), nil)
 	if err != nil {
 		return err
@@ -123,6 +149,8 @@ func (c Client) get(ctx context.Context, accessToken, path string, query url.Val
 		return json.NewDecoder(httpResponse.Body).Decode(response)
 	case http.StatusUnauthorized:
 		return ErrUnauthorized
+	case http.StatusTooManyRequests:
+		return errThrottled
 	default:
 		return fmt.Errorf("GET %s: %s", path, httpResponse.Status)
 	}

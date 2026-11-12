@@ -38,6 +38,8 @@ type Server struct {
 	mu sync.Mutex
 	// refusals are the OAuth errors the next redemptions meet, in order.
 	refusals []string
+	// throttled counts the role listings the server has yet to turn away.
+	throttled int
 	// minted counts the credentials issued, which tells one set from the next.
 	minted int
 }
@@ -100,7 +102,24 @@ func (s *Server) listAccounts(w http.ResponseWriter, r *http.Request) {
 	page(w, r, "accountList", entries)
 }
 
+// ThrottleRoleListings makes the server turn away the next role listings, as many as count.
+func (s *Server) ThrottleRoleListings(count int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.throttled = count
+}
+
 func (s *Server) listAccountRoles(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	throttle := s.throttled > 0
+	if throttle {
+		s.throttled--
+	}
+	s.mu.Unlock()
+	if throttle {
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
 	var entries []any
 	for _, account := range s.accounts {
 		if account.ID == r.URL.Query().Get("account_id") {

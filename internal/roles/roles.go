@@ -17,11 +17,11 @@ type Role struct {
 	Name        string
 }
 
-// Requests in flight to the portal at once.
-const concurrency = 8
+// Requests in flight to the portal at once: it throttles above some twenty requests a second, and four make about fifteen.
+const concurrency = 4
 
-// Fetch lists the roles of every account assigned to the user.
-func Fetch(ctx context.Context, client portal.Client, accessToken string) ([]Role, error) {
+// Fetch lists the roles of every account assigned to the user, and tells progress how many accounts it has listed.
+func Fetch(ctx context.Context, client portal.Client, accessToken string, progress func(listed, total int)) ([]Role, error) {
 	accounts, err := client.ListAccounts(ctx, accessToken)
 	if err != nil {
 		return nil, err
@@ -32,6 +32,8 @@ func Fetch(ctx context.Context, client portal.Client, accessToken string) ([]Rol
 	names := make([][]string, len(accounts))
 	slots := make(chan struct{}, concurrency)
 	var listings sync.WaitGroup
+	var reporting sync.Mutex
+	listed := 0
 	for index, account := range accounts {
 		slots <- struct{}{}
 		listings.Go(func() {
@@ -39,8 +41,13 @@ func Fetch(ctx context.Context, client portal.Client, accessToken string) ([]Rol
 			roleNames, err := client.ListAccountRoles(ctx, accessToken, account.ID)
 			if err != nil {
 				cancel(err)
+				return
 			}
 			names[index] = roleNames
+			reporting.Lock()
+			defer reporting.Unlock()
+			listed++
+			progress(listed, len(accounts))
 		})
 	}
 	listings.Wait()

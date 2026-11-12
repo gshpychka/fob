@@ -19,10 +19,10 @@ import (
 type app struct {
 	stdout io.Writer
 	stderr io.Writer
-	// hyperlinks says that stderr is a terminal, which renders links.
-	hyperlinks bool
-	user       prompter
-	// choose lets the user pick one of lines, which the output of the refresh command replaces.
+	// terminal says that stderr is a terminal, which renders links and a status line.
+	terminal bool
+	user     prompter
+	// choose lets the user pick one of lines, which the output of a refresh command replaces.
 	choose func(ctx context.Context, lines []string, refresh string) (string, error)
 
 	session     session.Session
@@ -64,15 +64,18 @@ func (a app) pick(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// The picker opens on the profiles of the last sync and runs the next one meanwhile.
 	names, err := awsconfig.Read(a.awsConfigPath, program)
+	refresh := program + " sync"
 	if len(names) == 0 {
-		// A config without profiles gets its first sync before the picker opens.
+		// A config without profiles gets its sync before the picker opens.
 		names, err = a.refresh(ctx)
+		refresh = ""
 	}
 	if err != nil {
 		return err
 	}
-	profile, err := a.choose(ctx, names, program+" sync")
+	profile, err := a.choose(ctx, names, refresh)
 	if err != nil {
 		return err
 	}
@@ -93,7 +96,7 @@ func (a app) login(ctx context.Context) error {
 func (a app) signIn(ctx context.Context) error {
 	expiry, err := a.session.Login(ctx, func(approval session.Approval) {
 		page := approval.URL
-		if a.hyperlinks {
+		if a.terminal {
 			page = hyperlink("approval page", approval.URL)
 		}
 		fmt.Fprintf(a.stderr, "Approve the sign-in: %s\nCode: %s\n", page, approval.Code)
@@ -138,7 +141,11 @@ func (a app) refresh(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	granted, err := roles.Fetch(ctx, a.portal, accessToken)
+	a.status("Syncing roles")
+	granted, err := roles.Fetch(ctx, a.portal, accessToken, func(listed, total int) {
+		a.status(fmt.Sprintf("Syncing roles: %d of %d accounts", listed, total))
+	})
+	a.status("")
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +158,13 @@ func (a app) refresh(ctx context.Context) ([]string, error) {
 		names[i] = profile.Name
 	}
 	return names, nil
+}
+
+// status puts text on the terminal's status line, in place of the text that was there.
+func (a app) status(text string) {
+	if a.terminal {
+		fmt.Fprint(a.stderr, "\r\x1b[K"+text)
+	}
 }
 
 // creds prints a role's credentials in the format of credential_process.
