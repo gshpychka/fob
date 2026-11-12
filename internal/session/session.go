@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gshpychka/idc/internal/ssooidc"
@@ -56,7 +57,7 @@ func (s Session) Login(ctx context.Context, present func(Approval)) (time.Time, 
 	}
 	authorization, err := s.OIDC.StartDeviceAuthorization(ctx, registration, s.Instance.StartURL)
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("sign-in to %s in %s: %w", s.Instance.StartURL, s.Instance.Region, err)
 	}
 	present(Approval{URL: authorization.VerificationURL, Code: authorization.UserCode})
 	token, err := s.awaitApproval(ctx, registration, authorization)
