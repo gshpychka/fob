@@ -73,6 +73,7 @@ func run(ctx context.Context, arguments []string) error {
 	commands := app{
 		stdout:        os.Stdout,
 		stderr:        os.Stderr,
+		unhooked:      isTerminal(os.Stdout),
 		terminal:      isTerminal(os.Stderr),
 		user:          user,
 		choose:        choose,

@@ -19,6 +19,8 @@ import (
 type app struct {
 	stdout io.Writer
 	stderr io.Writer
+	// unhooked says that stdout is a terminal, where the shell function is absent.
+	unhooked bool
 	// terminal says that stderr is a terminal, which renders links and a status line.
 	terminal bool
 	user     prompter
@@ -34,7 +36,7 @@ type app struct {
 	remember func() error
 }
 
-var errUsage = errors.New("usage: " + program + " [login | sync | creds <account-id> <role-name>]")
+var errUsage = errors.New("usage: " + program + " [login | sync | init | creds <account-id> <role-name>]")
 
 // run executes the command line that follows the program's name.
 func (a app) run(ctx context.Context, arguments []string) error {
@@ -46,6 +48,8 @@ func (a app) run(ctx context.Context, arguments []string) error {
 		err = a.login(ctx)
 	case len(arguments) == 1 && arguments[0] == "sync":
 		err = a.sync(ctx)
+	case len(arguments) == 1 && arguments[0] == "init":
+		_, err = fmt.Fprint(a.stdout, shellFunction)
 	case len(arguments) == 3 && arguments[0] == "creds":
 		err = a.creds(ctx, arguments[1], arguments[2])
 	}
@@ -80,6 +84,9 @@ func (a app) pick(ctx context.Context) error {
 		return err
 	}
 	fmt.Fprintln(a.stdout, profile)
+	if a.unhooked {
+		fmt.Fprintf(a.stderr, "To set AWS_PROFILE in the shell, add to its startup file: %s\n", shellSetup)
+	}
 	return nil
 }
 
