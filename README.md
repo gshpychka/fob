@@ -26,8 +26,8 @@ With Go:
 $ go install github.com/gshpychka/fob@latest
 ```
 
-A build by Go runs [fzf](https://github.com/junegunn/fzf) 0.61 or later from
-the `PATH`, and on macOS [age](https://age-encryption.org) and
+A build by Go runs [fzf](https://github.com/junegunn/fzf) 0.61 or later and
+[age](https://age-encryption.org) from the `PATH`, and on macOS
 [age-plugin-se](https://github.com/remko/age-plugin-se) as well.
 
 A line in `~/.zshrc` or `~/.bashrc` lets `fob` set the shell's AWS profile:
@@ -84,7 +84,23 @@ background adds the roles granted since, and runs to its end after you pick.
 
 | `store` | Secrets at rest |
 | --- | --- |
-| `secure-enclave`, the macOS default | Sealed with [age](https://age-encryption.org), each secret to a key of its own in the Mac's Secure Enclave ([age-plugin-se](https://github.com/remko/age-plugin-se)). A key works only on that Mac and takes Touch ID for each use. A change of the enrolled fingerprints signs you out. |
-| `systemd-creds`, the Linux default | Sealed by [`systemd-creds --user`](https://www.freedesktop.org/software/systemd/man/latest/systemd-creds.html) with the machine's credential key, for the owning user. |
+| `age`, the macOS default | Sealed with [age](https://age-encryption.org) to the identity in `$FOB_STORE_KEY`. |
+| `systemd-creds`, the Linux default | Sealed with age to an identity that `$FOB_STORE_KEY` holds as a [systemd credential](https://www.freedesktop.org/software/systemd/man/latest/systemd-creds.html). |
 | `file` | Plain files that only their owner can read. |
+
+A sealed store opens for the processes that hold its key, on the machine the
+key is bound to. A dev shell that exports the key from a secrets manager keeps
+the store to the processes of that shell.
+
+A key in a Mac's Secure Enclave, which works on that Mac:
+
+```console
+$ age-plugin-se keygen --access-control none
+```
+
+A key sealed with a Linux machine's TPM, for the user who makes it:
+
+```console
+$ age-keygen | systemd-creds --user --name=FOB_STORE_KEY --with-key=host+tpm2 encrypt - -
+```
 

@@ -26,12 +26,15 @@ buildGoModule {
     "-s"
     "-w"
     "-X main.fzfPath=${lib.getExe fzf}"
-  ]
-  # the Secure Enclave store exists only on macOS
-  ++ lib.optionals stdenv.hostPlatform.isDarwin [
     "-X github.com/gshpychka/fob/internal/store.agePath=${age}/bin/age"
-    "-X github.com/gshpychka/fob/internal/store.agePluginSEPath=${age-plugin-se}/bin/age-plugin-se"
+  ]
+  # age reaches a Mac's Secure Enclave through this plugin
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    "-X github.com/gshpychka/fob/internal/store.agePluginsPath=${lib.makeBinPath [ age-plugin-se ]}"
   ];
+
+  # the store's test seals with age
+  nativeCheckInputs = [ age ];
 
   # the tests serve stand-ins for the AWS endpoints on the loopback interface
   __darwinAllowLocalNetworking = true;

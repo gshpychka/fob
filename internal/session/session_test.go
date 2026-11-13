@@ -16,7 +16,7 @@ import (
 func TestLoginPacesRedemptionAsTheServiceDirects(t *testing.T) {
 	aws := fakeaws.New(t)
 	aws.RefuseRedemptions("authorization_pending", "slow_down")
-	secrets, err := store.Open(store.File, t.TempDir())
+	secrets, err := store.Open(t.Context(), store.File, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

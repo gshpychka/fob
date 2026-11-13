@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 )
@@ -25,30 +26,41 @@ type Kind string
 const (
 	// File keeps each secret in a file only its owner can read.
 	File Kind = "file"
-	// SecureEnclave seals each file to a key of its own, held by the Mac's Secure Enclave.
-	SecureEnclave Kind = "secure-enclave"
-	// SystemdCreds seals each file with the machine's systemd credential key, for the owning user.
+	// Age seals each file with age to the identity that the environment holds.
+	Age Kind = "age"
+	// SystemdCreds seals each file with age to an identity that the environment holds as a systemd credential.
 	SystemdCreds Kind = "systemd-creds"
 )
 
-// DefaultKind is the backend that binds secrets to the machine on this platform.
+// keyVariable names the environment variable that holds the key of a sealed store.
+const keyVariable = "FOB_STORE_KEY"
+
+// DefaultKind is the kind that takes a key bound to the machine on this platform.
 func DefaultKind() Kind {
 	if runtime.GOOS == "darwin" {
-		return SecureEnclave
+		return Age
 	}
 	return SystemdCreds
 }
 
 // Open returns the store of one kind that lives in dir.
-func Open(kind Kind, dir string) (Store, error) {
+func Open(ctx context.Context, kind Kind, dir string) (Store, error) {
 	secrets := files{dir: filepath.Join(dir, "secrets")}
 	switch kind {
 	case File:
 		return secrets, nil
-	case SecureEnclave:
-		return sealed{files: secrets, sealer: enclave{identities: files{dir: filepath.Join(dir, "identities")}}}, nil
-	case SystemdCreds:
-		return sealed{files: secrets, sealer: systemdCreds{}}, nil
+	case Age, SystemdCreds:
+		identity := []byte(os.Getenv(keyVariable))
+		if len(identity) == 0 {
+			return nil, fmt.Errorf("the %s store takes its key from %s, which is unset", kind, keyVariable)
+		}
+		if kind == SystemdCreds {
+			var err error
+			if identity, err = unwrap(ctx, identity); err != nil {
+				return nil, err
+			}
+		}
+		return sealed{files: secrets, identity: identity}, nil
 	}
-	return nil, fmt.Errorf("unknown store %q: the stores are %s, %s and %s", kind, File, SecureEnclave, SystemdCreds)
+	return nil, fmt.Errorf("unknown store %q: the stores are %s, %s and %s", kind, File, Age, SystemdCreds)
 }

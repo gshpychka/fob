@@ -31,6 +31,7 @@
           packages = [
             pkgs.gopls
             pkgs.fzf
+            pkgs.age
           ]
           ++ formatTools pkgs;
         };

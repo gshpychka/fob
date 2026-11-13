@@ -23,7 +23,7 @@ import (
 
 // newApp wires the commands to a stand-in for AWS and to a user who types answers and picks the first profile.
 func newApp(t *testing.T, aws *fakeaws.Server, answers string) (a app, stdout, stderr *bytes.Buffer) {
-	secrets, err := store.Open(store.File, t.TempDir())
+	secrets, err := store.Open(t.Context(), store.File, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

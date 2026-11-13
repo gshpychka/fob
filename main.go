@@ -62,7 +62,7 @@ func run(ctx context.Context, ink pen, arguments []string) error {
 			return err
 		}
 	}
-	secrets, err := store.Open(cmp.Or(settings.Store, store.DefaultKind()), directory("XDG_STATE_HOME", ".local/state"))
+	secrets, err := store.Open(ctx, cmp.Or(settings.Store, store.DefaultKind()), directory("XDG_STATE_HOME", ".local/state"))
 	if err != nil {
 		return err
 	}
