@@ -6,12 +6,15 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gshpychka/fob/internal/config"
@@ -71,17 +74,18 @@ func run(ctx context.Context, arguments []string) error {
 	}
 	portalClient := portal.Client{Endpoint: portal.Endpoint(settings.Region), HTTP: client}
 	commands := app{
-		stdout:        os.Stdout,
-		stderr:        os.Stderr,
-		unhooked:      isTerminal(os.Stdout),
-		terminal:      isTerminal(os.Stderr),
-		user:          user,
-		choose:        choose,
-		session:       signIn,
-		portal:        portalClient,
-		credentials:   credentials.Provider{Session: signIn, Portal: portalClient, Secrets: secrets},
-		awsConfigPath: cmp.Or(os.Getenv("AWS_CONFIG_FILE"), filepath.Join(home, ".aws", "config")),
-		remember:      func() error { return config.Save(settingsPath, settings) },
+		stdout:           os.Stdout,
+		stderr:           os.Stderr,
+		unhooked:         isTerminal(os.Stdout),
+		terminal:         isTerminal(os.Stderr),
+		user:             user,
+		choose:           choose,
+		syncInBackground: syncInBackground,
+		session:          signIn,
+		portal:           portalClient,
+		credentials:      credentials.Provider{Session: signIn, Portal: portalClient, Secrets: secrets},
+		awsConfigPath:    cmp.Or(os.Getenv("AWS_CONFIG_FILE"), filepath.Join(home, ".aws", "config")),
+		remember:         func() error { return config.Save(settingsPath, settings) },
 	}
 	return commands.run(ctx, arguments)
 }
@@ -99,6 +103,22 @@ func identify(instance session.Instance, user prompter) (session.Instance, error
 		instance.Region, err = user.ask("IAM Identity Center region", suggestion)
 	}
 	return instance, err
+}
+
+// syncInBackground starts a sync that outlives the program, and returns the profile names it prints.
+func syncInBackground() (io.Reader, error) {
+	executable, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	sync := exec.Command(executable, "sync")
+	// A session of its own keeps the terminal's interrupt and hangup away from the sync.
+	sync.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	names, err := sync.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	return names, sync.Start()
 }
 
 func isTerminal(file *os.File) bool {

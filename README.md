@@ -58,8 +58,8 @@ a link the terminal opens on a click. A sign-in lasts the
 [eight hours](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sso-credentials.html)
 of an IAM Identity Center access token.
 
-The picker is fzf. It shows the roles of the last sync at once and takes in the
-roles granted right now as soon as AWS has listed them.
+The picker is fzf. It opens at once on the roles of the last sync. A sync in the
+background adds the roles granted since, and runs to its end after you pick.
 
 | Command | Does |
 | --- | --- |

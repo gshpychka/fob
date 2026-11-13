@@ -37,10 +37,13 @@ func newApp(t *testing.T, aws *fakeaws.Server, answers string) (a app, stdout, s
 	portalClient := portal.Client{Endpoint: aws.URL, HTTP: http.DefaultClient}
 	stdout, stderr = new(bytes.Buffer), new(bytes.Buffer)
 	return app{
-		stdout:        stdout,
-		stderr:        stderr,
-		user:          prompter{in: bufio.NewReader(strings.NewReader(answers)), out: io.Discard},
-		choose:        func(_ context.Context, lines []string, _ string) (string, error) { return lines[0], nil },
+		stdout: stdout,
+		stderr: stderr,
+		user:   prompter{in: bufio.NewReader(strings.NewReader(answers)), out: io.Discard},
+		choose: func(_ context.Context, lines io.Reader) (string, error) {
+			first, err := bufio.NewReader(lines).ReadString('\n')
+			return strings.TrimSpace(first), err
+		},
 		session:       signIn,
 		portal:        portalClient,
 		credentials:   credentials.Provider{Session: signIn, Portal: portalClient, Secrets: secrets},

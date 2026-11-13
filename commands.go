@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/gshpychka/fob/internal/awsconfig"
@@ -24,8 +25,10 @@ type app struct {
 	// terminal says that stderr is a terminal, which renders links and a status line.
 	terminal bool
 	user     prompter
-	// choose lets the user pick one of lines, which the output of a refresh command replaces.
-	choose func(ctx context.Context, lines []string, refresh string) (string, error)
+	// choose lets the user pick one of the lines that arrive while the picker is open.
+	choose func(ctx context.Context, lines io.Reader) (string, error)
+	// syncInBackground starts a sync that outlives the program, and returns the profile names it prints.
+	syncInBackground func() (io.Reader, error)
 
 	session     session.Session
 	portal      portal.Client
@@ -68,18 +71,20 @@ func (a app) pick(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// The picker opens on the profiles of the last sync and runs the next one meanwhile.
+	// The picker opens on the profiles of the last sync, and a sync in the background adds its own to them.
 	names, err := awsconfig.Read(a.awsConfigPath, program)
-	refresh := program + " sync"
+	fresh := io.Reader(strings.NewReader(""))
 	if len(names) == 0 {
 		// A config without profiles gets its sync before the picker opens.
 		names, err = a.refresh(ctx)
-		refresh = ""
+	} else {
+		fresh, err = a.syncInBackground()
 	}
 	if err != nil {
 		return err
 	}
-	profile, err := a.choose(ctx, names, refresh)
+	last := strings.NewReader(strings.Join(names, "\n") + "\n")
+	profile, err := a.choose(ctx, io.MultiReader(last, fresh))
 	if err != nil {
 		return err
 	}

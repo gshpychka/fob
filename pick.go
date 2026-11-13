@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,17 +16,26 @@ var fzfPath = "fzf"
 
 var errNoChoice = errors.New("no profile chosen")
 
-// choose returns the line the user picks out of lines; the output of a refresh command takes their place once it is complete.
+// choose returns the line the user picks; the picker lists each distinct line as it arrives.
 //
 // https://junegunn.github.io/fzf/reference/
-func choose(ctx context.Context, lines []string, refresh string) (string, error) {
+func choose(ctx context.Context, lines io.Reader) (string, error) {
 	// The reverse layout puts the prompt at the top and the best match right under it.
 	fzf := exec.CommandContext(ctx, fzfPath, "--layout=reverse")
-	if refresh != "" {
-		// fzf raises load for every list it finishes reading, so the binding unbinds itself.
-		fzf.Args = append(fzf.Args, "--bind", "load:unbind(load)+reload-sync("+refresh+")")
+	list, err := fzf.StdinPipe()
+	if err != nil {
+		return "", err
 	}
-	fzf.Stdin = strings.NewReader(strings.Join(lines, "\n"))
+	go func() {
+		defer list.Close()
+		listed := map[string]bool{}
+		for scanner := bufio.NewScanner(lines); scanner.Scan(); {
+			if line := scanner.Text(); !listed[line] {
+				listed[line] = true
+				fmt.Fprintln(list, line)
+			}
+		}
+	}()
 	fzf.Stderr = os.Stderr
 	choice, err := fzf.Output()
 	// fzf exits with 1 when nothing matches the query and with 130 when the user leaves it.
