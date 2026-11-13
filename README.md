@@ -77,30 +77,20 @@ background adds the roles granted since, and runs to its end after you pick.
 | File | Holds |
 | --- | --- |
 | `$FOB_CONFIG_FILE`, or `$XDG_CONFIG_HOME/fob/config.json` | The settings: `startUrl`, `region` and, to override the platform's default, `store`. |
-| `$XDG_STATE_HOME/fob/` | The secrets, in the store. |
+| `$XDG_STATE_HOME/fob/` | The secrets, in the store, and the key of a sealed store. |
 | `$AWS_CONFIG_FILE`, or `~/.aws/config` | The profiles. `fob` owns this file and asks before it replaces a config it did not write. |
 
 ## Stores
 
 | `store` | Secrets at rest |
 | --- | --- |
-| `age`, the macOS default | Sealed with [age](https://age-encryption.org) to the identity in `$FOB_STORE_KEY`. |
-| `systemd-creds`, the Linux default | Sealed with age to an identity that `$FOB_STORE_KEY` holds as a [systemd credential](https://www.freedesktop.org/software/systemd/man/latest/systemd-creds.html). |
+| `secure-enclave`, the macOS default | Sealed with [age](https://age-encryption.org) to a key in the Mac's Secure Enclave ([age-plugin-se](https://github.com/remko/age-plugin-se)). |
+| `systemd-creds`, the Linux default | Sealed with age to a key that [`systemd-creds --user`](https://www.freedesktop.org/software/systemd/man/latest/systemd-creds.html) seals for the machine and the user, with the TPM on a machine that has one. |
 | `file` | Plain files that only their owner can read. |
 
-A sealed store opens for the processes that hold its key, on the machine the
-key is bound to. A dev shell that exports the key from a secrets manager keeps
-the store to the processes of that shell.
+A sealed store makes its key on first use and keeps it in
+`$XDG_STATE_HOME/fob/key`, in a form that works only on that machine.
 
-A key in a Mac's Secure Enclave, which works on that Mac:
-
-```console
-$ age-plugin-se keygen --access-control none
-```
-
-A key sealed with a Linux machine's TPM, for the user who makes it:
-
-```console
-$ age-keygen | systemd-creds --user --name=FOB_STORE_KEY --with-key=host+tpm2 encrypt - -
-```
-
+A key in `$FOB_STORE_KEY` takes precedence, and the store then opens only for
+the processes that hold the variable. A dev shell that exports the content of a
+key file from a secrets manager keeps the store to its own processes.

@@ -20,7 +20,7 @@ func TestSealedStoreOpensWithItsKey(t *testing.T) {
 			t.Skip("age-keygen is unavailable")
 		}
 		t.Setenv("FOB_STORE_KEY", string(identity))
-		secrets, err := store.Open(t.Context(), store.Age, dir)
+		secrets, err := store.Open(t.Context(), store.SecureEnclave, dir)
 		if err != nil {
 			t.Fatal(err)
 		}
