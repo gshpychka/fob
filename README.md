@@ -84,7 +84,7 @@ background adds the roles granted since, and runs to its end after you pick.
 
 | `store` | Secrets at rest |
 | --- | --- |
-| `secure-enclave`, the macOS default | Sealed with [age](https://age-encryption.org) to a key in the Mac's Secure Enclave ([age-plugin-se](https://github.com/remko/age-plugin-se)). The key works on that Mac alone and asks for no password or touch. |
+| `secure-enclave`, the macOS default | Sealed with [age](https://age-encryption.org), each secret to a key of its own in the Mac's Secure Enclave ([age-plugin-se](https://github.com/remko/age-plugin-se)). A key works on that Mac alone and takes Touch ID for each use. A change of the enrolled fingerprints signs you out. |
 | `systemd-creds`, the Linux default | Sealed by [`systemd-creds --user`](https://www.freedesktop.org/software/systemd/man/latest/systemd-creds.html) with the machine's credential key, for the owning user. |
 | `file` | Plain files that only their owner can read. |
 

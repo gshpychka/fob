@@ -34,6 +34,9 @@ func (f files) Set(_ context.Context, name string, secret []byte) error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(f.dir, 0o700); err != nil {
+		return err
+	}
 	return atomicfile.Write(path, secret)
 }
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 )
@@ -26,7 +25,7 @@ type Kind string
 const (
 	// File keeps each secret in a file only its owner can read.
 	File Kind = "file"
-	// SecureEnclave seals each file to a key held by the Mac's Secure Enclave.
+	// SecureEnclave seals each file to a key of its own, held by the Mac's Secure Enclave.
 	SecureEnclave Kind = "secure-enclave"
 	// SystemdCreds seals each file with the machine's systemd credential key, for the owning user.
 	SystemdCreds Kind = "systemd-creds"
@@ -43,14 +42,11 @@ func DefaultKind() Kind {
 // Open returns the store of one kind that lives in dir.
 func Open(kind Kind, dir string) (Store, error) {
 	secrets := files{dir: filepath.Join(dir, "secrets")}
-	if err := os.MkdirAll(secrets.dir, 0o700); err != nil {
-		return nil, err
-	}
 	switch kind {
 	case File:
 		return secrets, nil
 	case SecureEnclave:
-		return sealed{files: secrets, sealer: enclave{identityPath: filepath.Join(dir, "enclave-identity")}}, nil
+		return sealed{files: secrets, sealer: enclave{identities: files{dir: filepath.Join(dir, "identities")}}}, nil
 	case SystemdCreds:
 		return sealed{files: secrets, sealer: systemdCreds{}}, nil
 	}

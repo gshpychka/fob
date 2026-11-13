@@ -2,8 +2,6 @@ package store
 
 import (
 	"context"
-	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,54 +13,40 @@ var (
 	agePluginSEPath = "age-plugin-se"
 )
 
-// enclave seals with age to a key in the Mac's Secure Enclave.
+// enclave seals with age, each secret to a key of its own in the Mac's Secure Enclave.
 //
 // https://github.com/remko/age-plugin-se
 type enclave struct {
-	// identityPath holds the enclave's handle to the key, which works on this Mac alone.
-	identityPath string
+	// identities keeps the enclave's handle to each secret's key; a handle works on this Mac alone.
+	identities files
 }
 
-// The key serves any process that reads the identity file, with no user presence check.
-const accessControl = "none"
+// A key takes a touch for each use, and works while the enrolled fingers are those of its making.
+const accessControl = "current-biometry"
 
-func (e enclave) seal(ctx context.Context, _ string, secret []byte) ([]byte, error) {
-	if err := e.ensureIdentity(ctx); err != nil {
-		return nil, err
-	}
-	recipient, err := run(ctx, nil, nil, agePluginSEPath, "recipients", "-i", e.identityPath)
+func (e enclave) seal(ctx context.Context, name string, secret []byte) ([]byte, error) {
+	// A new key for each secret written binds it to the fingers enrolled now.
+	identity, err := run(ctx, nil, nil, agePluginSEPath, "keygen", "--access-control", accessControl)
 	if err != nil {
 		return nil, err
 	}
-	return run(ctx, ageEnvironment(), secret, agePath, "--encrypt", "--recipient", strings.TrimSpace(string(recipient)))
-}
-
-func (e enclave) open(ctx context.Context, _ string, ciphertext []byte) ([]byte, error) {
-	return run(ctx, ageEnvironment(), ciphertext, agePath, "--decrypt", "--identity", e.identityPath)
-}
-
-// ensureIdentity generates the key on first use.
-func (e enclave) ensureIdentity(ctx context.Context) error {
-	if _, err := os.Stat(e.identityPath); !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-	scratch, err := os.MkdirTemp(filepath.Dir(e.identityPath), "enclave-identity.*")
+	recipient, err := run(ctx, nil, identity, agePluginSEPath, "recipients")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer os.RemoveAll(scratch)
-	candidate := filepath.Join(scratch, "identity")
-	if _, err := run(ctx, nil, nil, agePluginSEPath, "keygen", "--access-control", accessControl, "-o", candidate); err != nil {
-		return err
+	ciphertext, err := run(ctx, ageEnvironment(), secret, agePath, "--encrypt", "--recipient", strings.TrimSpace(string(recipient)))
+	if err != nil {
+		return nil, err
 	}
-	if err := os.Chmod(candidate, 0o600); err != nil {
-		return err
+	return ciphertext, e.identities.Set(ctx, name, identity)
+}
+
+func (e enclave) open(ctx context.Context, name string, ciphertext []byte) ([]byte, error) {
+	identity, err := e.identities.path(name)
+	if err != nil {
+		return nil, err
 	}
-	// A link fails when the identity exists, so processes racing through first use settle on one key.
-	if err := os.Link(candidate, e.identityPath); err != nil && !errors.Is(err, fs.ErrExist) {
-		return err
-	}
-	return nil
+	return run(ctx, ageEnvironment(), ciphertext, agePath, "--decrypt", "--identity", identity)
 }
 
 // ageEnvironment is the environment in which age finds the plugin, which it resolves on PATH.
