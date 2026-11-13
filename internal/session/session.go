@@ -76,7 +76,7 @@ func (s Session) Login(ctx context.Context, present func(Approval)) (time.Time, 
 	return signIn.ExpiresAt, s.Secrets.Set(ctx, secretName, secret)
 }
 
-// RFC 8628 sets the redemption interval for a response that omits one, and the step a slow_down adds to it.
+// RFC 8628 sets the redemption interval of a response without one, and the step a slow_down adds to it.
 const (
 	defaultInterval = 5 * time.Second
 	slowDownStep    = 5 * time.Second

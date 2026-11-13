@@ -111,7 +111,7 @@ func (c Client) GetRoleCredentials(ctx context.Context, accessToken, accountID, 
 // errThrottled reports a request the service turns away for the rate of requests.
 var errThrottled = errors.New("IAM Identity Center is throttling requests")
 
-// A throttled response leaves the time to retry at to the client, so the pauses before the retries double from the first to the last.
+// A throttled response comes without a time to retry at, so the pauses before the retries double from the first to the last.
 const (
 	firstPause = 200 * time.Millisecond
 	lastPause  = 3200 * time.Millisecond

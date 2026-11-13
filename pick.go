@@ -14,7 +14,7 @@ import (
 // fzfPath is the fzf that draws the picker.
 var fzfPath = "fzf"
 
-var errNoChoice = errors.New("the picker closed before a choice was made")
+var errNoChoice = errors.New("the picker closed without a choice")
 
 // choose returns the profile name the user picks; the picker lists each distinct name as it arrives.
 //
@@ -45,7 +45,7 @@ func choose(ctx context.Context, lines io.Reader) (string, error) {
 	}()
 	fzf.Stderr = os.Stderr
 	choice, err := fzf.Output()
-	// fzf exits with 1 when the query filters every line out and with 130 when the user leaves it.
+	// fzf exits with 1 for a query without a match and with 130 when the user leaves it.
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && (exit.ExitCode() == 1 || exit.ExitCode() == 130) {
 		return "", errNoChoice

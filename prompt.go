@@ -27,7 +27,7 @@ func (p prompter) ask(question, suggestion string) (string, error) {
 			return answer, nil
 		}
 		if err != nil {
-			return "", fmt.Errorf("reading the answer: %w", err)
+			return "", fmt.Errorf("the prompt ended without an answer: %w", err)
 		}
 	}
 }
