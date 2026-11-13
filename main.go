@@ -33,13 +33,15 @@ var settingsVariable = strings.ToUpper(program) + "_CONFIG_FILE"
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := run(ctx, os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	// NO_COLOR is the user's request for plain text: https://no-color.org/
+	ink := pen(isTerminal(os.Stderr) && os.Getenv("NO_COLOR") == "")
+	if err := run(ctx, ink, os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, ink.paint(red, "✗"), err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, arguments []string) error {
+func run(ctx context.Context, ink pen, arguments []string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -53,7 +55,7 @@ func run(ctx context.Context, arguments []string) error {
 	if err != nil {
 		return err
 	}
-	user := prompter{in: bufio.NewReader(os.Stdin), out: os.Stderr}
+	user := prompter{in: bufio.NewReader(os.Stdin), out: os.Stderr, pen: ink}
 	// The commands that sign the user in ask for the instance.
 	if len(arguments) == 0 || slices.Equal(arguments, []string{"login"}) {
 		if settings.Instance, err = identify(settings.Instance, user); err != nil {
@@ -78,6 +80,7 @@ func run(ctx context.Context, arguments []string) error {
 		stderr:           os.Stderr,
 		unhooked:         isTerminal(os.Stdout),
 		terminal:         isTerminal(os.Stderr),
+		pen:              ink,
 		user:             user,
 		choose:           choose,
 		syncInBackground: syncInBackground,

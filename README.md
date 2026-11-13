@@ -26,8 +26,8 @@ With Go:
 $ go install github.com/gshpychka/fob@latest
 ```
 
-A build by Go runs [fzf](https://github.com/junegunn/fzf) from the `PATH`, and
-on macOS [age](https://age-encryption.org) and
+A build by Go runs [fzf](https://github.com/junegunn/fzf) 0.61 or later from
+the `PATH`, and on macOS [age](https://age-encryption.org) and
 [age-plugin-se](https://github.com/remko/age-plugin-se) as well.
 
 A line in `~/.zshrc` or `~/.bashrc` lets `fob` set the shell's AWS profile:
@@ -43,11 +43,13 @@ shell, the startup file holds the output of `fob init` itself.
 
 ```console
 $ fob
-IAM Identity Center start URL: https://example.awsapps.com/start
-IAM Identity Center region [eu-west-1]:
-Approve the sign-in: approval page
-Code: ABCD-EFGH
-Signed in until 18:42.
+▸ IAM Identity Center start URL: https://example.awsapps.com/start
+▸ IAM Identity Center region [eu-west-1]:
+▸ Approve the sign-in: approval page
+  Code: ABCD-EFGH
+✓ Signed in until 18:42
+✓ Synced 42 roles
+✓ data-platform/Admin
 ```
 
 `fob` signs you in when you are signed out, then opens a picker over your roles
@@ -60,6 +62,9 @@ of an IAM Identity Center access token.
 
 The picker is fzf. It opens at once on the roles of the last sync. A sync in the
 background adds the roles granted since, and runs to its end after you pick.
+
+The colours are the terminal's own palette, and
+[`NO_COLOR`](https://no-color.org/) turns them off.
 
 | Command | Does |
 | --- | --- |

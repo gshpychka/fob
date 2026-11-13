@@ -24,7 +24,9 @@ type app struct {
 	unhooked bool
 	// terminal says that stderr is a terminal, which renders links and a status line.
 	terminal bool
-	user     prompter
+	// pen styles the text on stderr.
+	pen  pen
+	user prompter
 	// choose lets the user pick one of the lines that arrive while the picker is open.
 	choose func(ctx context.Context, lines io.Reader) (string, error)
 	// syncInBackground starts a sync that outlives the program, and returns the profile names it prints.
@@ -90,9 +92,16 @@ func (a app) pick(ctx context.Context) error {
 	}
 	fmt.Fprintln(a.stdout, profile)
 	if a.unhooked {
-		fmt.Fprintf(a.stderr, "To set AWS_PROFILE in the shell, add to its startup file: %s\n", shellSetup)
+		fmt.Fprintln(a.stderr, a.pen.paint(faint, "To set AWS_PROFILE in the shell, add to its startup file:"), shellSetup)
+	} else {
+		a.done(a.pen.profile(profile))
 	}
 	return nil
+}
+
+// done tells the user that a step has succeeded.
+func (a app) done(text string) {
+	fmt.Fprintln(a.stderr, a.pen.paint(green, "✓"), text)
 }
 
 // login signs the user in and refreshes the profiles.
@@ -111,20 +120,15 @@ func (a app) signIn(ctx context.Context) error {
 		if a.terminal {
 			page = hyperlink("approval page", approval.URL)
 		}
-		fmt.Fprintf(a.stderr, "Approve the sign-in: %s\nCode: %s\n", page, approval.Code)
+		fmt.Fprintf(a.stderr, "%s Approve the sign-in: %s\n  Code: %s\n", a.pen.paint(cyan, "▸"), page, a.pen.paint(bold, approval.Code))
+		a.status(a.pen.paint(faint, "Waiting for the approval…"))
 	})
+	a.status("")
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(a.stderr, "Signed in until %s.\n", expiry.Format("15:04"))
+	a.done("Signed in until " + expiry.Format("15:04"))
 	return a.remember()
-}
-
-// hyperlink is underlined text that a terminal opens as a link on a click.
-//
-// https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda
-func hyperlink(text, url string) string {
-	return "\x1b]8;;" + url + "\x1b\\\x1b[4m" + text + "\x1b[24m\x1b]8;;\x1b\\"
 }
 
 // sync refreshes the profiles and prints their names.
@@ -155,7 +159,7 @@ func (a app) refresh(ctx context.Context) ([]string, error) {
 	}
 	a.status("Syncing roles")
 	granted, err := roles.Fetch(ctx, a.portal, accessToken, func(listed, total int) {
-		a.status(fmt.Sprintf("Syncing roles: %d of %d accounts", listed, total))
+		a.status(fmt.Sprintf("Syncing roles %s %d/%d", a.pen.bar(listed, total), listed, total))
 	})
 	a.status("")
 	if err != nil {
@@ -169,6 +173,7 @@ func (a app) refresh(ctx context.Context) ([]string, error) {
 	for i, profile := range profiles {
 		names[i] = profile.Name
 	}
+	a.done(fmt.Sprintf("Synced %d roles", len(names)))
 	return names, nil
 }
 

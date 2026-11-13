@@ -16,12 +16,19 @@ var fzfPath = "fzf"
 
 var errNoChoice = errors.New("no profile chosen")
 
-// choose returns the line the user picks; the picker lists each distinct line as it arrives.
+// choose returns the profile name the user picks; the picker lists each distinct name as it arrives.
 //
 // https://junegunn.github.io/fzf/reference/
 func choose(ctx context.Context, lines io.Reader) (string, error) {
-	// The reverse layout puts the prompt at the top and the best match right under it.
-	fzf := exec.CommandContext(ctx, fzfPath, "--layout=reverse")
+	// fzf renders the colours in its text where the terminal shows colour, and prints the choice without them.
+	ink := pen(true)
+	fzf := exec.CommandContext(ctx, fzfPath, "--ansi",
+		// The picker opens under the cursor, with the prompt at its top and the best match right under it.
+		"--height=50%", "--layout=reverse",
+		"--border=rounded", "--border-label="+ink.paint(cyan, " "+program+" "), "--border-label-pos=3",
+		"--prompt="+ink.paint(cyan, "▸")+" ", "--ghost=account or role",
+		"--info=inline-right", "--no-separator", "--highlight-line",
+	)
 	list, err := fzf.StdinPipe()
 	if err != nil {
 		return "", err
@@ -32,7 +39,7 @@ func choose(ctx context.Context, lines io.Reader) (string, error) {
 		for scanner := bufio.NewScanner(lines); scanner.Scan(); {
 			if line := scanner.Text(); !listed[line] {
 				listed[line] = true
-				fmt.Fprintln(list, line)
+				fmt.Fprintln(list, ink.profile(line))
 			}
 		}
 	}()
