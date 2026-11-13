@@ -14,6 +14,8 @@ const (
 	green style = "32"
 	// cyan is the accent colour.
 	cyan style = "36"
+	// ember is the orange #fe8019, in 24-bit colour.
+	ember style = "38;2;254;128;25"
 )
 
 // pen styles text for a terminal; the zero pen leaves text plain.

@@ -118,7 +118,7 @@ func (a app) signIn(ctx context.Context) error {
 	expiry, err := a.session.Login(ctx, func(approval session.Approval) {
 		page := approval.URL
 		if a.terminal {
-			page = hyperlink("approval page", approval.URL)
+			page = hyperlink(a.pen.paint(ember, "approval page"), approval.URL)
 		}
 		fmt.Fprintf(a.stderr, "%s Approve the sign-in: %s\n  Code: %s\n", a.pen.paint(cyan, "▸"), page, a.pen.paint(bold, approval.Code))
 		a.status(a.pen.paint(faint, "Waiting for the approval…"))

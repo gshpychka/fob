@@ -63,8 +63,7 @@ of an IAM Identity Center access token.
 The picker is fzf. It opens at once on the roles of the last sync. A sync in the
 background adds the roles granted since, and runs to its end after you pick.
 
-The colours are the terminal's own palette, and
-[`NO_COLOR`](https://no-color.org/) turns them off.
+[`NO_COLOR`](https://no-color.org/) turns the colours off.
 
 | Command | Does |
 | --- | --- |
