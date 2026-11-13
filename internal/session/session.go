@@ -113,12 +113,13 @@ func (s Session) AccessToken(ctx context.Context) (string, error) {
 	if errors.Is(err, store.ErrNotFound) {
 		return "", ErrSignedOut
 	}
-	if err != nil {
-		return "", err
-	}
 	var signIn record
-	if err := json.Unmarshal(secret, &signIn); err != nil {
-		return "", err
+	if err == nil {
+		err = json.Unmarshal(secret, &signIn)
+	}
+	if err != nil {
+		// A stored sign-in that fails to read is over.
+		return "", fmt.Errorf("%w: %v", ErrSignedOut, err)
 	}
 	if signIn.Instance != s.Instance || !time.Now().Before(signIn.ExpiresAt) {
 		return "", ErrSignedOut
