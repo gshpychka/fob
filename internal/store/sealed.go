@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-// sealer encrypts secrets so that this machine alone reads them back.
+// sealer encrypts secrets so that only this machine reads them back.
 type sealer interface {
 	seal(ctx context.Context, name string, secret []byte) ([]byte, error)
 	open(ctx context.Context, name string, ciphertext []byte) ([]byte, error)

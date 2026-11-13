@@ -17,7 +17,7 @@ var (
 //
 // https://github.com/remko/age-plugin-se
 type enclave struct {
-	// identities keeps the enclave's handle to each secret's key; a handle works on this Mac alone.
+	// identities keeps the enclave's handle to each secret's key; a handle works only on this Mac.
 	identities files
 }
 

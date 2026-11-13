@@ -9,7 +9,7 @@ import (
 	"runtime"
 )
 
-// ErrNotFound reports a name with no secret stored under it.
+// ErrNotFound reports a name that the store does not hold.
 var ErrNotFound = errors.New("secret not found")
 
 // Store holds secrets by name.

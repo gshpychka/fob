@@ -21,7 +21,7 @@ type Settings struct {
 	Store store.Kind `json:"store,omitempty"`
 }
 
-// Load reads the settings at path; a missing file holds none.
+// Load reads the settings at path; a missing file gives empty settings.
 func Load(path string) (Settings, error) {
 	var settings Settings
 	data, err := os.ReadFile(path)
