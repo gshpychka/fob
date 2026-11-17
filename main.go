@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -57,7 +56,7 @@ func run(ctx context.Context, ink pen, arguments []string) error {
 	}
 	user := prompter{in: bufio.NewReader(os.Stdin), out: os.Stderr, pen: ink}
 	// The commands that sign the user in ask for the instance.
-	if len(arguments) == 0 || slices.Equal(arguments, []string{"login"}) {
+	if _, login := loginCommand(arguments); len(arguments) == 0 || login {
 		if settings.Instance, err = identify(settings.Instance, user); err != nil {
 			return err
 		}

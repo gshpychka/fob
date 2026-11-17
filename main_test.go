@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -115,5 +116,76 @@ func TestSyncReplacesAForeignConfigOnlyWithConsent(t *testing.T) {
 		if (err == nil) != replaced || (string(config) != foreign) != replaced {
 			t.Errorf("answer %q: err = %v, config = %q", answer, err, config)
 		}
+	}
+}
+
+func TestLoginReusesValidSessionUnlessForced(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		stored     bool
+		expired    bool
+		other      bool
+		force      bool
+		wantSignIn bool
+	}{
+		{name: "signed out", wantSignIn: true},
+		{name: "valid", stored: true},
+		{name: "expired", stored: true, expired: true, wantSignIn: true},
+		{name: "other instance", stored: true, other: true, wantSignIn: true},
+		{name: "forced", stored: true, force: true, wantSignIn: true},
+		{name: "forced signed out", force: true, wantSignIn: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			a, _, stderr := newApp(t, fakeaws.New(t,
+				fakeaws.Account{ID: "111111111111", Name: "billing", Roles: []string{"Admin"}},
+			), "")
+			if test.stored {
+				if _, err := a.session.Login(t.Context(), func(session.Approval) {}); err != nil {
+					t.Fatal(err)
+				}
+				if test.expired {
+					secret, err := a.session.Secrets.Get(t.Context(), "session")
+					if err != nil {
+						t.Fatal(err)
+					}
+					var record map[string]any
+					if err := json.Unmarshal(secret, &record); err != nil {
+						t.Fatal(err)
+					}
+					record["ExpiresAt"] = time.Now().Add(-time.Hour)
+					secret, err = json.Marshal(record)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := a.session.Secrets.Set(t.Context(), "session", secret); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if test.other {
+					a.session.Instance.StartURL = "https://other.awsapps.com/start"
+				}
+			}
+			// A valid session must work even when the OIDC service is unavailable.
+			if !test.wantSignIn {
+				a.session.OIDC.Endpoint = ":invalid"
+			}
+			arguments := []string{"login"}
+			if test.force {
+				arguments = append(arguments, "--force")
+			}
+			if err := a.run(t.Context(), arguments); err != nil {
+				t.Fatal(err)
+			}
+			if signedIn := strings.Contains(stderr.String(), fakeaws.VerificationURL); signedIn != test.wantSignIn {
+				t.Errorf("sign-in = %v, want %v; stderr: %s", signedIn, test.wantSignIn, stderr)
+			}
+			config, err := os.ReadFile(a.awsConfigPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(config), "[profile billing/Admin]") {
+				t.Errorf("login did not sync roles: %s", config)
+			}
+		})
 	}
 }

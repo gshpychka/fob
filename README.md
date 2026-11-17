@@ -67,7 +67,7 @@ background adds the roles granted since, and runs to its end after you pick.
 
 | Command | Does |
 | --- | --- |
-| `fob login` | Signs in and syncs. |
+| `fob login [--force]` | Reuses a valid sign-in and syncs, signing in when needed. `--force` starts a new sign-in. |
 | `fob sync` | Gives each role granted right now a profile in the AWS config file and prints the profile names. |
 | `fob init` | Prints the shell function that exports the profile picked in `fob`. |
 | `fob creds <account-id> <role-name>` | Prints a role's credentials for `credential_process`. The profiles call it, and it keeps the credentials in the store until 15 minutes before they expire. |

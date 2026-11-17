@@ -41,16 +41,28 @@ type app struct {
 	remember func() error
 }
 
-var errUsage = errors.New("usage: " + program + " [login | sync | init | creds <account-id> <role-name>]")
+var errUsage = errors.New("usage: " + program + " [login [--force] | sync | init | creds <account-id> <role-name>]")
+
+// loginCommand recognises login and its optional force flag.
+func loginCommand(arguments []string) (force, ok bool) {
+	if len(arguments) == 1 && arguments[0] == "login" {
+		return false, true
+	}
+	if len(arguments) == 2 && arguments[0] == "login" && arguments[1] == "--force" {
+		return true, true
+	}
+	return false, false
+}
 
 // run executes the command line that follows the program's name.
 func (a app) run(ctx context.Context, arguments []string) error {
 	err := errUsage
+	force, login := loginCommand(arguments)
 	switch {
 	case len(arguments) == 0:
 		err = a.pick(ctx)
-	case len(arguments) == 1 && arguments[0] == "login":
-		err = a.login(ctx)
+	case login:
+		err = a.login(ctx, force)
 	case len(arguments) == 1 && arguments[0] == "sync":
 		err = a.sync(ctx)
 	case len(arguments) == 1 && arguments[0] == "init":
@@ -104,12 +116,19 @@ func (a app) done(text string) {
 	fmt.Fprintln(a.stderr, a.pen.paint(green, "✓"), text)
 }
 
-// login signs the user in and refreshes the profiles.
-func (a app) login(ctx context.Context) error {
-	if err := a.signIn(ctx); err != nil {
+// login reuses a valid sign-in unless forced, then refreshes the profiles.
+func (a app) login(ctx context.Context, force bool) error {
+	var err error
+	if !force {
+		_, err = a.session.AccessToken(ctx)
+	}
+	if force || errors.Is(err, session.ErrSignedOut) {
+		err = a.signIn(ctx)
+	}
+	if err != nil {
 		return err
 	}
-	_, err := a.refresh(ctx)
+	_, err = a.refresh(ctx)
 	return err
 }
 
